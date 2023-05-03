@@ -16,6 +16,7 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 
+import com.android.volley.DefaultRetryPolicy;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
@@ -119,7 +120,8 @@ public class MainActivity extends AppCompatActivity implements NewsAdapter.OnIte
             public void run() {
                 // Call your function here
                 mScoreAdapter.notifyDataSetChanged();
-                refreshScore("https://rrjiotvweb.azurewebsites.net/live_score_api/getscore.php","https://rrjiotvweb.azurewebsites.net/live_score_api/score.json");
+
+                refreshScore("https://rrjiotvweb.azurewebsites.net/live_score_api/getscore.php","https://rrjiotvweb.azurewebsites.net/live_score_api/getscore.php");
 
                 // Schedule the runnable to run again after 5 seconds
                 mHandler.postDelayed(this, 5000);
@@ -142,7 +144,7 @@ public class MainActivity extends AppCompatActivity implements NewsAdapter.OnIte
             public void onRefresh() {
                 mNewsList.clear();
                 fetchData(makeURL(topic,language));
-                fetchScore("https://rrjiotvweb.azurewebsites.net/live_score_api/getscore.php","https://rrjiotvweb.azurewebsites.net/live_score_api/score.json");
+                fetchScore("https://rrjiotvweb.azurewebsites.net/live_score_api/getscore.php","https://rrjiotvweb.azurewebsites.net/live_score_api/getscore.php");
                 swipeRefreshLayout.setRefreshing(false);
             }
         });
@@ -264,16 +266,16 @@ public class MainActivity extends AppCompatActivity implements NewsAdapter.OnIte
         mRequestQueue.add(request);
     }
     private void fetchScore(String refresh,String getUrl){
+//        try {
+//            URL url = new URL(refresh);
+//            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+//            connection.setRequestMethod("GET");
+//            connection.connect();
+//            connection.disconnect();
+//        } catch (IOException e) {
+//
+//        }
 
-        try {
-            URL url = new URL(refresh);
-            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-            connection.setRequestMethod("GET");
-            connection.connect();
-            connection.disconnect();
-        } catch (IOException e) {
-            // Handle exception
-        }
         JsonArrayRequest request=new JsonArrayRequest(Request.Method.GET, getUrl, null,
                 new Response.Listener<JSONArray>() {
                     @Override
@@ -299,15 +301,21 @@ public class MainActivity extends AppCompatActivity implements NewsAdapter.OnIte
                                 int runNeeded = run1+runs;
 
                                 //for 2nd innings
-                                if(teamtwo.equals("Data Not Found") && update.contains("need")){
+                                if(run1 != 0 && runs!=0){
                                     teamtwo=("Target - "+runNeeded);
                                 }//before match
                                 else if(update.contains("Starts")){
                                     teamone="Match";
                                     teamtwo="Yet To Start";
-                                }//1st innings
-                                else if (teamtwo.equals("Data Not Found") && update.contains("opt")){
+                                }else if(teamtwo.equals("Data Not Found") || !teamtwo.isEmpty()){
+                                    String curr_sc=teamtwo;
                                     teamtwo="";
+                                    if(current.equals("Data Not Found") ){
+                                        if(teamone.equals("Data Not Found")){
+                                            teamone=update;
+                                        }
+                                        teamtwo=curr_sc;
+                                    }
                                 }
                                 mScoreList.add(new NewsItem(title,update,teamone,teamtwo));
                             }
@@ -342,7 +350,7 @@ public class MainActivity extends AppCompatActivity implements NewsAdapter.OnIte
             connection.connect();
             connection.disconnect();
         } catch (IOException e) {
-            // Handle exception
+
         }
 
         JsonArrayRequest request=new JsonArrayRequest(Request.Method.GET, getUrl, null,
@@ -370,12 +378,24 @@ public class MainActivity extends AppCompatActivity implements NewsAdapter.OnIte
                                 int runs = needed(current);
                                 int run1=needed(update);
                                 int runNeeded = run1+runs;
-                                if(teamtwo.equals("Data Not Found") && !update.contains("Starts")){
-                                    teamtwo=("Target - "+runNeeded);
 
-                                }else if(update.contains("Starts")){
+
+                                //for 2nd innings
+                                if(run1 != 0 && runs!=0){
+                                    teamtwo=("Target - "+runNeeded);
+                                }//before match
+                                else if(update.contains("Starts")){
                                     teamone="Match";
                                     teamtwo="Yet To Start";
+                                }else if(teamtwo.equals("Data Not Found") || !teamtwo.isEmpty()){
+                                    String curr_sc=teamtwo;
+                                    teamtwo="";
+                                    if(current.equals("Data Not Found") ){
+                                        if(teamone.equals("Data Not Found")){
+                                            teamone=update;
+                                        }
+                                        teamtwo=curr_sc;
+                                    }
                                 }
                                 mScoreList.set(i,new NewsItem(title,update,teamone,teamtwo));
                             }
@@ -400,6 +420,10 @@ public class MainActivity extends AppCompatActivity implements NewsAdapter.OnIte
                 error.printStackTrace();
             }
         });
+        request.setRetryPolicy(new DefaultRetryPolicy(
+                DefaultRetryPolicy.DEFAULT_TIMEOUT_MS * 2,
+                DefaultRetryPolicy.DEFAULT_MAX_RETRIES,
+                DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
         mRequestQueue.add(request);
     }
     private int needed(String sentence) {
